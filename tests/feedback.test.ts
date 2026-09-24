@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import Avalon from '../src/index.js';
-import { iniciarFakeGateway, REQUEST_ID_DO_FAKE, UUID_INEXISTENTE } from './fake-gateway.js';
+import { iniciarFakeGateway, REQUEST_ID_DO_FAKE, REQUEST_ID_ERRO_500, UUID_INEXISTENTE } from './fake-gateway.js';
 
 let fake: Awaited<ReturnType<typeof iniciarFakeGateway>>;
 beforeAll(async () => {
@@ -42,5 +42,13 @@ describe('RN-SDK-05 · feedback espelha a rota campo a campo', () => {
     expect((capturado as { status?: number }).status).toBe(400);
     // A prova de que o SDK não validou: o fake RECEBEU valor 2.
     expect(fake.ultima().corpo?.valor).toBe(2);
+  });
+
+  it('F5: retry desligado no feedback — o 500 chega cru e o fake recebe EXATAMENTE 1 requisição', async () => {
+    const capturado = await novo()
+      .feedback.create({ requestId: REQUEST_ID_ERRO_500, valor: 1 })
+      .then(() => null, (e: unknown) => e);
+    expect((capturado as { status?: number }).status).toBe(500);
+    expect(fake.contagemFeedback()).toBe(1);
   });
 });

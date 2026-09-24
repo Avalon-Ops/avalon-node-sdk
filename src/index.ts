@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import type { Stream } from 'openai/core/streaming';
 import type {
   ChatCompletion,
   ChatCompletionChunk,
@@ -10,7 +11,7 @@ import type { CreateEmbeddingResponse, EmbeddingCreateParams } from 'openai/reso
 
 export const CABECALHO_REQUEST_ID = 'x-avalon-request-id';
 
-export type Metadata = Record<string, unknown>;
+export type Metadata = Record<string, string>;
 export type ComRequestId = { requestId?: string };
 
 export interface OpcoesAvalon {
@@ -21,13 +22,14 @@ export interface OpcoesAvalon {
 
 /** Repassadas ao SDK openai; headers explícitos do chamador perdem para o
  * x-metadata calculado — metadata de primeira classe É a porta para esse
- * header. */
-export interface OpcoesDeChamada {
-  headers?: Record<string, string>;
-}
+ * header. Alias das opções REAIS do SDK: `openai/internal/request-options`
+ * não é um caminho exportado no package.json da versão instalada (medido —
+ * `ls node_modules/openai/internal/` existe no disco mas fora do mapa
+ * `exports`), então usamos o tipo do segundo parâmetro do próprio método. */
+export type OpcoesDeChamada = Parameters<OpenAI['chat']['completions']['create']>[1];
 
 export interface EntradaFeedback {
-  requestId: string;
+  requestId: string | undefined;
   valor: number;
   peso?: number;
 }
@@ -40,7 +42,7 @@ export interface RecursoCompletions {
   create(
     params: ChatCompletionCreateParamsStreaming & { metadata?: Metadata },
     opcoes?: OpcoesDeChamada,
-  ): Promise<AsyncIterable<ChatCompletionChunk> & ComRequestId>;
+  ): Promise<Stream<ChatCompletionChunk> & ComRequestId>;
 }
 
 export interface RecursoEmbeddings {
@@ -68,7 +70,7 @@ function anexarRequestId<T extends object>(alvo: T, resposta: Response): T & Com
   return alvo as T & ComRequestId;
 }
 
-export default class Avalon {
+export class Avalon {
   readonly chat: { completions: RecursoCompletions };
   readonly embeddings: RecursoEmbeddings;
   readonly models: OpenAI['models'];
@@ -98,10 +100,17 @@ export default class Avalon {
   }
 
   /** Merge por chave: o por-request vence o do construtor chave a chave;
-   * objeto final vazio → header ausente (RN-SDK-03). */
+   * objeto final vazio → header ausente (RN-SDK-03). O undici recusa header
+   * fora do Latin-1 (`Cannot convert argument to a ByteString`) para `€`,
+   * CJK, emoji — escapamos para `\uXXXX` ASCII puro, byte a byte igual ao
+   * `json.dumps(..., ensure_ascii=True)` do SDK Python. */
   #headerMetadata(porRequest?: Metadata): Record<string, string> {
     const combinado = { ...this.#metadataBase, ...(porRequest ?? {}) };
-    return Object.keys(combinado).length > 0 ? { 'x-metadata': JSON.stringify(combinado) } : {};
+    const json = JSON.stringify(combinado).replace(
+      /[\u007f-￿]/g,
+      (ch) => '\\u' + ch.charCodeAt(0).toString(16).padStart(4, '0'),
+    );
+    return Object.keys(combinado).length > 0 ? { 'x-metadata': json } : {};
   }
 
   #opcoes(metadata: Metadata | undefined, opcoes: OpcoesDeChamada | undefined) {
@@ -135,6 +144,10 @@ export default class Avalon {
   async #criarFeedback({ requestId, valor, peso }: EntradaFeedback): Promise<unknown> {
     const corpo: Record<string, unknown> = { request_id: requestId, valor };
     if (peso !== undefined) corpo.peso = peso;
-    return this.#cliente.post('/feedback', { body: corpo });
+    // POST /v1/feedback é INSERT sem idempotência no gateway — o retry
+    // padrão do SDK openai gravaria feedback duas vezes.
+    return this.#cliente.post('/feedback', { body: corpo, maxRetries: 0 });
   }
 }
+
+export default Avalon;

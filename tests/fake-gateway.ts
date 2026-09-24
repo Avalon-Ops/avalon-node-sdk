@@ -7,6 +7,7 @@ import type { AddressInfo } from 'node:net';
 
 export const REQUEST_ID_DO_FAKE = '11111111-2222-4333-8444-555555555555';
 export const UUID_INEXISTENTE = '00000000-0000-4000-8000-000000000404';
+export const REQUEST_ID_ERRO_500 = '00000000-0000-4000-8000-000000000500';
 
 export type RequisicaoGravada = {
   metodo: string;
@@ -62,9 +63,13 @@ async function lerCorpo(req: IncomingMessage): Promise<Record<string, unknown> |
 export async function iniciarFakeGateway(): Promise<{
   url: string;
   ultima(): RequisicaoGravada;
+  contagemFeedback(): number;
   fechar(): Promise<void>;
 }> {
   let gravada: RequisicaoGravada | null = null;
+  // RN-SDK-05/F5: conta só as chegadas do sentinela de retry — não polui
+  // com os outros testes de feedback que rodam no mesmo fake compartilhado.
+  let contagemFeedbackErro500 = 0;
 
   const servidor: Server = createServer((req, res) => {
     void (async () => {
@@ -84,6 +89,10 @@ export async function iniciarFakeGateway(): Promise<{
       if (req.method === 'POST' && req.url === '/v1/feedback') {
         const requestId = String(corpo?.request_id ?? '');
         const valor = corpo?.valor;
+        if (requestId === REQUEST_ID_ERRO_500) {
+          contagemFeedbackErro500 += 1;
+          return responder(res, 500, erro('erro_interno', 'Falha interna simulada.'));
+        }
         if (requestId === UUID_INEXISTENTE) {
           return responder(res, 404, erro('nao_encontrado', 'Recurso não encontrado.'));
         }
@@ -105,6 +114,7 @@ export async function iniciarFakeGateway(): Promise<{
       if (!gravada) throw new Error('nenhuma requisição chegou ao fake');
       return gravada;
     },
+    contagemFeedback: () => contagemFeedbackErro500,
     fechar: () => new Promise<void>((resolve, reject) => servidor.close((e) => (e ? reject(e) : resolve()))),
   };
 }

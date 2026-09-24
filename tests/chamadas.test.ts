@@ -11,7 +11,7 @@ afterAll(async () => {
   await fake.fechar();
 });
 
-const novo = (metadata?: Record<string, unknown>) =>
+const novo = (metadata?: Record<string, string>) =>
   new Avalon({ apiKey: 'gov_teste', baseURL: fake.url, metadata });
 
 const MENSAGENS = [{ role: 'user' as const, content: 'oi' }];
@@ -37,6 +37,15 @@ describe('RN-SDK-03 · metadata de primeira classe', () => {
     expect(fake.ultima().headers['x-metadata']).toBeUndefined();
   });
 
+  it('F2: metadata com acento e CJK sobrevive — header ASCII puro, valores originais na volta', async () => {
+    await novo({ _user: 'João', time: '平台' }).chat.completions.create({
+      model: '@teste/gpt-4', messages: MENSAGENS,
+    });
+    const header = String(fake.ultima().headers['x-metadata']);
+    expect(/^[\x00-\x7f]*$/.test(header)).toBe(true);
+    expect(JSON.parse(header)).toEqual({ _user: 'João', time: '平台' });
+  });
+
   it('a chave da requisição vai como Bearer', async () => {
     await novo().chat.completions.create({ model: '@teste/gpt-4', messages: MENSAGENS });
     expect(fake.ultima().headers.authorization).toBe('Bearer gov_teste');
@@ -57,6 +66,10 @@ describe('RN-SDK-04 · requestId capturado', () => {
     for await (const chunk of stream) texto += chunk.choices[0]?.delta?.content ?? '';
     expect(texto).toBe('olá');
     expect(stream.requestId).toBe(REQUEST_ID_DO_FAKE);
+    // F4: teste de tipo — só compila se o retorno for Stream<ChatCompletionChunk>
+    // de verdade (AsyncIterable puro não tem .controller).
+    const abortar: () => void = () => stream.controller.abort();
+    void abortar;
   });
 
   it('embeddings: metadata e requestId funcionam igual', async () => {

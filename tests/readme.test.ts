@@ -3,7 +3,7 @@
  * (docs-publicas.test.tsx). Auto-referência: `import ... from 'avalonops'`
  * resolve pelo próprio package.json → dist/ (por isso `npm test` builda). */
 import { execFile } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -32,5 +32,18 @@ describe('RN-SDK-06 · README executado', () => {
     const resultado = JSON.parse(linhas[linhas.length - 1] ?? '{}') as { requestId?: string; total?: number };
     expect(resultado.requestId).toBe(REQUEST_ID_DO_FAKE);
     expect(resultado.total).toBe(1);
+  });
+
+  it('F3: o bloco ts de Uso compila em modo strict (resposta.requestId é string | undefined)', async () => {
+    const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf8');
+    const bloco = /```ts\n([\s\S]*?)```/.exec(readme)?.[1];
+    expect(bloco, 'o README precisa ter um bloco ```ts').toBeTruthy();
+    const caminhoTmp = join(process.cwd(), 'tests', '.bloco-readme.tmp.ts');
+    writeFileSync(caminhoTmp, bloco ?? '', 'utf8');
+    try {
+      await executar('npx', ['tsc', '--noEmit', '-p', 'tsconfig.readme.json'], { cwd: process.cwd() });
+    } finally {
+      rmSync(caminhoTmp, { force: true });
+    }
   });
 });
