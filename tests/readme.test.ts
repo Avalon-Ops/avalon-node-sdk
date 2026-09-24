@@ -19,11 +19,19 @@ afterAll(async () => {
   await fake.fechar();
 });
 
+/** Os blocos ts do README formam um script progressivo (o mesmo `client` e
+ * a mesma `resposta` atravessam as seções, como no molde didático da
+ * Portkey) — concatenados na ordem, TODOS rodam; nenhum é editado. */
+function blocosTs(readme: string): string {
+  const blocos = [...readme.matchAll(/```ts\n([\s\S]*?)```/g)].map((m) => m[1]);
+  expect(blocos.length, 'o README precisa ter blocos ```ts').toBeGreaterThanOrEqual(2);
+  return blocos.join('\n');
+}
+
 describe('RN-SDK-06 · README executado', () => {
-  it('o bloco ts de Uso roda ponta a ponta contra o fake', async () => {
+  it('os blocos ts de Uso rodam ponta a ponta contra o fake, concatenados na ordem', async () => {
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf8');
-    const bloco = /```ts\n([\s\S]*?)```/.exec(readme)?.[1];
-    expect(bloco, 'o README precisa ter um bloco ```ts').toBeTruthy();
+    const bloco = blocosTs(readme);
     const script = `${bloco}\nconsole.log(JSON.stringify({ requestId: resposta.requestId, total: modelos.data.length }));`;
     const { stdout } = await executar('node', ['--input-type=module', '-e', script], {
       env: { ...process.env, AVALON_BASE_URL: fake.url, AVALON_API_KEY: 'gov_readme' },
@@ -34,12 +42,10 @@ describe('RN-SDK-06 · README executado', () => {
     expect(resultado.total).toBe(1);
   });
 
-  it('F3: o bloco ts de Uso compila em modo strict (resposta.requestId é string | undefined)', async () => {
+  it('F3: os blocos ts de Uso compilam em modo strict (resposta.requestId é string | undefined)', async () => {
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf8');
-    const bloco = /```ts\n([\s\S]*?)```/.exec(readme)?.[1];
-    expect(bloco, 'o README precisa ter um bloco ```ts').toBeTruthy();
     const caminhoTmp = join(process.cwd(), 'tests', '.bloco-readme.tmp.ts');
-    writeFileSync(caminhoTmp, bloco ?? '', 'utf8');
+    writeFileSync(caminhoTmp, blocosTs(readme), 'utf8');
     try {
       await executar('npx', ['tsc', '--noEmit', '-p', 'tsconfig.readme.json'], { cwd: process.cwd() });
     } finally {
