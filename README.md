@@ -24,7 +24,7 @@ Ambas também podem vir no construtor (`apiKey`, `baseURL`), que vence a env.
 ```ts
 import Avalon from 'avalonops';
 
-const client = new Avalon({ metadata: { _user: 'fabio' } });
+const client = new Avalon({ metadata: { _user: 'seu-usuario' } });
 
 const resposta = await client.chat.completions.create({
   model: '@teste/gpt-4',
@@ -35,7 +35,7 @@ const resposta = await client.chat.completions.create({
 await client.chat.completions.create({
   model: '@teste/gpt-4',
   messages: [{ role: 'user', content: 'oi' }],
-  metadata: { _user: 'lorena' },
+  metadata: { _user: 'outro-usuario' },
 });
 
 // Toda resposta carrega o x-avalon-request-id — avalie a requisição com ele.
