@@ -11,6 +11,11 @@ import type { CreateEmbeddingResponse, EmbeddingCreateParams } from 'openai/reso
 
 export const CABECALHO_REQUEST_ID = 'x-avalon-request-id';
 
+/** O gateway do SaaS AvalonOps (emenda RN-SDK-02, 24/09): é a base quando
+ * nem o construtor nem a env AVALON_BASE_URL apontam para outro lugar —
+ * o mesmo desenho do api.portkey.ai embutido no SDK da Portkey. */
+export const URL_PADRAO_SAAS = 'https://api.avalonops.com.br';
+
 export type Metadata = Record<string, string>;
 export type ComRequestId = { requestId?: string };
 
@@ -75,6 +80,8 @@ export class Avalon {
   readonly embeddings: RecursoEmbeddings;
   readonly models: OpenAI['models'];
   readonly feedback: { create: (entrada: EntradaFeedback) => Promise<unknown> };
+  /** A base resolvida (construtor → env → default do SaaS), já com /v1. */
+  readonly baseURL: string;
 
   readonly #cliente: OpenAI;
   readonly #metadataBase: Metadata;
@@ -84,13 +91,9 @@ export class Avalon {
     if (!apiKey) {
       throw new Error('apiKey ausente: passe { apiKey } no construtor ou defina a env AVALON_API_KEY.');
     }
-    const raiz = opcoes.baseURL ?? process.env.AVALON_BASE_URL;
-    if (!raiz) {
-      throw new Error(
-        'baseURL ausente: passe { baseURL } no construtor ou defina a env AVALON_BASE_URL (a raiz do gateway, sem /v1).',
-      );
-    }
-    this.#cliente = new OpenAI({ apiKey, baseURL: raizParaV1(raiz) });
+    const raiz = opcoes.baseURL ?? process.env.AVALON_BASE_URL ?? URL_PADRAO_SAAS;
+    this.baseURL = raizParaV1(raiz);
+    this.#cliente = new OpenAI({ apiKey, baseURL: this.baseURL });
     this.#metadataBase = { ...(opcoes.metadata ?? {}) };
 
     this.chat = { completions: { create: this.#criarChat as RecursoCompletions['create'] } };
