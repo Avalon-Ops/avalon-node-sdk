@@ -24,10 +24,11 @@ describe('RN-SDK-02 · configuração', () => {
     expect(() => new Avalon()).toThrowError(/AVALON_API_KEY/);
   });
 
-  it('com apiKey mas sem baseURL, falha nomeando AVALON_BASE_URL — e a mensagem ensina que a base é a raiz, sem /v1', async () => {
+  it('SaaS: sem baseURL em lugar nenhum, o default embutido resolve — exposto na propriedade pública (emenda RN-SDK-02)', async () => {
     const Avalon = await carregar();
     delete process.env.AVALON_BASE_URL;
-    expect(() => new Avalon({ apiKey: 'gov_x' })).toThrowError(/AVALON_BASE_URL.*sem \/v1/);
+    const cliente = new Avalon({ apiKey: 'gov_x' });
+    expect(cliente.baseURL).toBe('https://api.avalonops.com.br/v1');
   });
 
   it('as envs bastam: construtor vazio constrói', async () => {
@@ -37,7 +38,7 @@ describe('RN-SDK-02 · configuração', () => {
     expect(() => new Avalon()).not.toThrow();
   });
 
-  describe('F8 · construtor vence env', () => {
+  describe('ordem de resolução da base, por chamada real', () => {
     let fake: Awaited<ReturnType<typeof iniciarFakeGateway>>;
     beforeAll(async () => {
       fake = await iniciarFakeGateway();
@@ -46,7 +47,20 @@ describe('RN-SDK-02 · configuração', () => {
       await fake.fechar();
     });
 
-    it('envs INVÁLIDAS não atrapalham: o construtor aponta pro fake e a chamada completa', async () => {
+    it('env vence o default: só a env aponta pro fake e a chamada completa', async () => {
+      const Avalon = await carregar();
+      process.env.AVALON_API_KEY = 'gov_env';
+      process.env.AVALON_BASE_URL = fake.url;
+      const cliente = new Avalon();
+      const resposta = await cliente.chat.completions.create({
+        model: '@teste/gpt-4',
+        messages: [{ role: 'user', content: 'oi' }],
+      });
+      expect(resposta.choices[0]?.message.content).toBe('olá');
+      expect(cliente.baseURL).toBe(`${fake.url}/v1`);
+    });
+
+    it('F8 · construtor vence env: envs INVÁLIDAS não atrapalham, o construtor aponta pro fake e a chamada completa', async () => {
       const Avalon = await carregar();
       process.env.AVALON_API_KEY = 'gov_env_invalida';
       process.env.AVALON_BASE_URL = 'http://127.0.0.1:9';

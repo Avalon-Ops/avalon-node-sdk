@@ -9,13 +9,12 @@ Ergonomia inspirada nos SDKs open source da Portkey; código próprio, MIT.
 ### Pré-requisitos
 
 1. Tenha o gateway AvalonOps da sua organização no ar e crie uma chave de API no console (menu **Chaves**).
-2. Instale o SDK e exporte as duas variáveis de ambiente — a base é a **raiz** do gateway, sem `/v1` (o SDK completa):
+2. Instale o SDK e exporte a chave — o SDK já sabe onde o gateway mora (`api.avalonops.com.br`):
 
 ```bash
 npm install avalonops
 
 export AVALON_API_KEY="SUA_CHAVE"
-export AVALON_BASE_URL="https://gateway.suaempresa.com"
 ```
 
 ### Fazendo uma requisição
@@ -65,10 +64,10 @@ const modelos = await client.models.list();
 
 | Variável | Papel |
 |---|---|
-| `AVALON_API_KEY` | Chave da API (a mesma do console) |
-| `AVALON_BASE_URL` | RAIZ do gateway da sua instalação, sem `/v1` — o SDK completa |
+| `AVALON_API_KEY` | Chave da API (a mesma do console) — obrigatória |
+| `AVALON_BASE_URL` | Opcional: outra instalação (dev/staging), como RAIZ sem `/v1` — o SDK completa. Sem ela, vale `https://api.avalonops.com.br` |
 
-Ambas também podem vir no construtor (`apiKey`, `baseURL`), que vence a env.
+Ambas também podem vir no construtor (`apiKey`, `baseURL`), que vence a env; a base resolvida fica em `client.baseURL`.
 
 Streaming, tipos e retries são os do SDK `openai` — inclusive `stream: true`, cujo objeto de stream também expõe `requestId`.
 
