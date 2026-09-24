@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "avalonops": ["./src/index.ts"]
+    }
+  },
+  "include": ["tests/.bloco-readme.tmp.ts"]
+}

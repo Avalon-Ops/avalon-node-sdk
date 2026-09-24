@@ -1,2 +1,4 @@
 node_modules/
 dist/
+.superpowers/
+tests/.bloco-readme.tmp.ts
