@@ -1,6 +1,6 @@
 {
   "name": "avalonops",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "SDK oficial da AvalonOps para Node — metadata de primeira classe sobre o SDK da OpenAI",
   "license": "MIT",
   "repository": { "type": "git", "url": "git+https://github.com/Avalon-Ops/avalon-node-sdk.git" },
