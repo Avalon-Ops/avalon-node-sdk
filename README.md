@@ -46,10 +46,17 @@ await client.chat.completions.create({
 
 ### Feedback por requisição
 
-Toda resposta carrega o `x-avalon-request-id`, exposto como `requestId` — avalie a requisição com ele (`valor` entre -1 e 1; `peso` opcional):
+Toda resposta carrega o `x-avalon-request-id`, exposto como `requestId` — avalie a requisição com ele: `valor` é um inteiro de -10 a 10 (👍/👎 = 1/-1; as estrelas do console gravam 1 a 5); `peso` vai de 0 a 1, padrão 1; `metadata` é opcional (objeto de strings, até 128 caracteres por valor):
 
 ```ts
 await client.feedback.create({ requestId: resposta.requestId, valor: 1 });
+
+// 4 estrelas, com metadata
+await client.feedback.create({
+  requestId: resposta.requestId,
+  valor: 4,
+  metadata: { _user: 'ana' },
+});
 ```
 
 ### O catálogo da sua organização
