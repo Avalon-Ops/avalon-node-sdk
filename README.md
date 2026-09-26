@@ -66,8 +66,9 @@ const modelos = await client.models.list();
 |---|---|
 | `AVALON_API_KEY` | Chave da API (a mesma do console) — obrigatória |
 | `AVALON_BASE_URL` | Opcional: outra instalação (dev/staging), como RAIZ sem `/v1` — o SDK completa. Sem ela, vale `https://api.avalonops.com.br` |
+| `debug` | Só no construtor (não é env): `false` omite request/response do log do gateway — as métricas e o `_user` continuam registrados |
 
-Ambas também podem vir no construtor (`apiKey`, `baseURL`), que vence a env; a base resolvida fica em `client.baseURL`.
+Ambas (`AVALON_API_KEY`/`AVALON_BASE_URL`) também podem vir no construtor (`apiKey`, `baseURL`), que vence a env; a base resolvida fica em `client.baseURL`.
 
 Streaming, tipos e retries são os do SDK `openai` — inclusive `stream: true`, cujo objeto de stream também expõe `requestId`.
 

@@ -23,6 +23,11 @@ export interface OpcoesAvalon {
   apiKey?: string;
   baseURL?: string;
   metadata?: Metadata;
+  /** DO NOT TRACK do gateway (RN-NT-07/08): `false` faz TODA chamada deste
+   * cliente levar `x-avalon-debug: 'false'` — o log da requisição grava as
+   * métricas e o `_user`, mas omite corpo/resposta. `true` ou ausente
+   * (default) não envia o header nenhum. */
+  debug?: boolean;
 }
 
 /** Repassadas ao SDK openai; headers explícitos do chamador perdem para o
@@ -93,7 +98,13 @@ export class Avalon {
     }
     const raiz = opcoes.baseURL ?? process.env.AVALON_BASE_URL ?? URL_PADRAO_SAAS;
     this.baseURL = raizParaV1(raiz);
-    this.#cliente = new OpenAI({ apiKey, baseURL: this.baseURL });
+    this.#cliente = new OpenAI({
+      apiKey,
+      baseURL: this.baseURL,
+      // defaultHeaders vai em TODA chamada do cliente openai — inclusive
+      // models.list() e o POST /feedback, que não passam por #opcoes().
+      defaultHeaders: { ...(opcoes.debug === false ? { 'x-avalon-debug': 'false' } : {}) },
+    });
     this.#metadataBase = { ...(opcoes.metadata ?? {}) };
 
     this.chat = { completions: { create: this.#criarChat as RecursoCompletions['create'] } };
