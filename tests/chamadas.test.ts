@@ -82,6 +82,28 @@ describe('RN-SDK-04 · requestId capturado', () => {
   });
 });
 
+describe('RN-NT-07/08 · DO NOT TRACK (x-avalon-debug)', () => {
+  it('debug: false → toda chamada leva x-avalon-debug: false, inclusive models.list()', async () => {
+    const cliente = new Avalon({ apiKey: 'gov_teste', baseURL: fake.url, debug: false });
+    await cliente.chat.completions.create({ model: '@teste/gpt-4', messages: MENSAGENS });
+    expect(fake.ultima().headers['x-avalon-debug']).toBe('false');
+
+    await cliente.models.list();
+    expect(fake.ultima().headers['x-avalon-debug']).toBe('false');
+  });
+
+  it('debug ausente → nenhum header x-avalon-debug', async () => {
+    await novo().chat.completions.create({ model: '@teste/gpt-4', messages: MENSAGENS });
+    expect(fake.ultima().headers['x-avalon-debug']).toBeUndefined();
+  });
+
+  it('debug: true → nenhum header x-avalon-debug (mesmo comportamento de ausente)', async () => {
+    const cliente = new Avalon({ apiKey: 'gov_teste', baseURL: fake.url, debug: true });
+    await cliente.chat.completions.create({ model: '@teste/gpt-4', messages: MENSAGENS });
+    expect(fake.ultima().headers['x-avalon-debug']).toBeUndefined();
+  });
+});
+
 describe('RN-SDK-01 · composição sem tradução', () => {
   it('models.list() é o do SDK openai contra o gateway — ids @slug/modelo sem tradução', async () => {
     const modelos = await novo().models.list();
