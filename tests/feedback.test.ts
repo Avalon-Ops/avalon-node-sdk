@@ -24,8 +24,8 @@ describe('RN-SDK-05 · feedback espelha a rota campo a campo', () => {
   });
 
   it('peso presente entra no corpo', async () => {
-    await novo().feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: -0.5, peso: 2 });
-    expect(fake.ultima().corpo).toEqual({ request_id: REQUEST_ID_DO_FAKE, valor: -0.5, peso: 2 });
+    await novo().feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: -1, peso: 0.5 });
+    expect(fake.ultima().corpo).toEqual({ request_id: REQUEST_ID_DO_FAKE, valor: -1, peso: 0.5 });
   });
 
   it('404 do gateway chega cru', async () => {
@@ -42,6 +42,30 @@ describe('RN-SDK-05 · feedback espelha a rota campo a campo', () => {
     expect((capturado as { status?: number }).status).toBe(400);
     // A prova de que o SDK não validou: o fake RECEBEU valor 20.
     expect(fake.ultima().corpo?.valor).toBe(20);
+  });
+
+  it('valor não-inteiro NÃO é validado no cliente: fake recusa com 400 valor_invalido (fidelidade a validacao.ts)', async () => {
+    const capturado = await novo()
+      .feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 0.5 })
+      .then(() => null, (e: unknown) => e);
+    const erroApi = capturado as { status?: number; error?: unknown; message?: string };
+    expect(erroApi.status).toBe(400);
+    expect(JSON.stringify({ error: erroApi.error, message: erroApi.message })).toContain('valor_invalido');
+  });
+
+  it('peso fora de 0..1 NÃO é validado no cliente: fake recusa com 400 peso_invalido', async () => {
+    const capturado = await novo()
+      .feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 1, peso: 1.5 })
+      .then(() => null, (e: unknown) => e);
+    const erroApi = capturado as { status?: number; error?: unknown; message?: string };
+    expect(erroApi.status).toBe(400);
+    expect(JSON.stringify({ error: erroApi.error, message: erroApi.message })).toContain('peso_invalido');
+  });
+
+  it('peso 0 é aceito — soma de pesos zero é "sem amostra", não erro (validacao.ts)', async () => {
+    const criado = await novo().feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 1, peso: 0 });
+    expect(fake.ultima().corpo).toEqual({ request_id: REQUEST_ID_DO_FAKE, valor: 1, peso: 0 });
+    expect((criado as { peso: number }).peso).toBe(0);
   });
 
   it('F5: retry desligado no feedback — o 500 chega cru e o fake recebe EXATAMENTE 1 requisição', async () => {

@@ -96,10 +96,26 @@ export async function iniciarFakeGateway(): Promise<{
         if (requestId === UUID_INEXISTENTE) {
           return responder(res, 404, erro('nao_encontrado', 'Recurso não encontrado.'));
         }
-        if (typeof valor !== 'number' || valor < -10 || valor > 10) {
-          return responder(res, 400, erro('valor_invalido', 'valor deve ser um número inteiro entre -10 e 10.'));
+        // Literais copiados de governanca-plataforma/src/feedback/validacao.ts
+        // (RN-FE-09) — fidelidade byte a byte com o gateway real, não só a
+        // faixa: `valor` é INTEIRO, `peso` tem teto em 1 (não só piso em 0).
+        if (typeof valor !== 'number' || !Number.isInteger(valor) || valor < -10 || valor > 10) {
+          return responder(
+            res,
+            400,
+            erro('valor_invalido', `valor deve ser um inteiro entre -10 e 10: "${String(valor)}"`),
+          );
         }
-        return responder(res, 201, { id: 'fb-1', logId: requestId, valor, peso: (corpo?.peso as number | undefined) ?? 1 });
+        const pesoBruto = corpo?.peso;
+        const peso = pesoBruto === undefined ? 1 : pesoBruto;
+        if (typeof peso !== 'number' || !Number.isFinite(peso) || peso < 0 || peso > 1) {
+          return responder(
+            res,
+            400,
+            erro('peso_invalido', `peso deve ser um número entre 0 e 1: "${String(peso)}"`),
+          );
+        }
+        return responder(res, 201, { id: 'fb-1', logId: requestId, valor, peso });
       }
       return responder(res, 404, erro('rota_inexistente', 'Recurso não encontrado.'));
     })();
