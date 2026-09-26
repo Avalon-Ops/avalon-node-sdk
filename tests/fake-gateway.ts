@@ -104,25 +104,45 @@ export async function iniciarFakeGateway(): Promise<{
         // Literais copiados de governanca-plataforma/src/feedback/validacao.ts
         // (RN-FE-09) — fidelidade byte a byte com o gateway real, não só a
         // faixa: `valor` é INTEIRO, `peso` tem teto em 1 (não só piso em 0).
+        // Fix I6 da revisão final ("Logs idênticos à Portkey"): o núcleo
+        // passa `mensagemAoCliente` ESPECÍFICA para valor_invalido/
+        // peso_invalido (a regra em si, não mais a genérica) — espelhado
+        // aqui byte a byte; log_id_invalido/metadata_invalida continuam
+        // genéricos.
         if (typeof valor !== 'number' || !Number.isInteger(valor) || valor < -10 || valor > 10) {
-          return responder(
-            res,
-            400,
-            // politicaDeForma(codigo, motivo) — genérica ao cliente
-            erro('valor_invalido', MENSAGEM_GENERICA_POLICIA_DE_FORMA),
-          );
+          return responder(res, 400, erro('valor_invalido', 'valor deve ser um inteiro entre -10 e 10.'));
         }
         const pesoBruto = corpo?.peso;
         const peso = pesoBruto === undefined ? 1 : pesoBruto;
         if (typeof peso !== 'number' || !Number.isFinite(peso) || peso < 0 || peso > 1) {
-          return responder(
-            res,
-            400,
-            // politicaDeForma(codigo, motivo) — genérica ao cliente
-            erro('peso_invalido', MENSAGEM_GENERICA_POLICIA_DE_FORMA),
-          );
+          return responder(res, 400, erro('peso_invalido', 'peso deve ser um número entre 0 e 1.'));
         }
-        return responder(res, 201, { id: 'fb-1', logId: requestId, valor, peso });
+        // Fix M2 da revisão final: o núcleo valida `metadata` via
+        // `validarMetadataDefault` (src/http/routes/completions.ts) nas
+        // duas rotas de feedback — objeto de strings, até 128 caracteres por
+        // valor, 400 metadata_invalida com a frase GENÉRICA (Fix I6 não
+        // muda este código). O fake não validava nada; qualquer corpo
+        // passava batido, escondendo o 400 que o gateway real daria.
+        const metadataBruta = corpo?.metadata;
+        let metadata: Record<string, string> | undefined;
+        if (metadataBruta !== undefined) {
+          if (typeof metadataBruta !== 'object' || metadataBruta === null || Array.isArray(metadataBruta)) {
+            return responder(res, 400, erro('metadata_invalida', MENSAGEM_GENERICA_POLICIA_DE_FORMA));
+          }
+          metadata = {};
+          for (const [k, v] of Object.entries(metadataBruta as Record<string, unknown>)) {
+            if (typeof v !== 'string' || v.length > 128) {
+              return responder(res, 400, erro('metadata_invalida', MENSAGEM_GENERICA_POLICIA_DE_FORMA));
+            }
+            metadata[k] = v;
+          }
+        }
+        return responder(
+          res, 201,
+          metadata !== undefined
+            ? { id: 'fb-1', logId: requestId, valor, peso, metadata }
+            : { id: 'fb-1', logId: requestId, valor, peso },
+        );
       }
       return responder(res, 404, erro('rota_inexistente', 'Recurso não encontrado.'));
     })();

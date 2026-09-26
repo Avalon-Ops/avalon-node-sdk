@@ -53,23 +53,28 @@ describe('RN-SDK-05 · feedback espelha a rota campo a campo', () => {
     expect(JSON.stringify({ error: erroApi.error, message: erroApi.message })).toContain('valor_invalido');
   });
 
-  it('valor não-inteiro (0.5): mensagem genérica ao cliente como no núcleo (politicaDeForma)', async () => {
+  it('valor não-inteiro (0.5): mensagem ESPECÍFICA ao cliente, como no núcleo (Fix I6 da revisão final)', async () => {
     const capturado = await novo()
       .feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 0.5 })
       .then(() => null, (e: unknown) => e);
     const erroApi = capturado as { status?: number; error?: { erro: { codigo: string; mensagem: string } } };
     expect(erroApi.status).toBe(400);
     expect(erroApi.error?.erro.codigo).toBe('valor_invalido');
-    expect(erroApi.error?.erro.mensagem).toBe('A requisição não está no formato aceito pela sua organização.');
+    // Fix I6 da revisão final ("Logs idênticos à Portkey"): o núcleo passa
+    // `mensagemAoCliente` ESPECÍFICA (a regra em si) para valor_invalido —
+    // não mais a genérica de politicaDeForma sem 3º argumento.
+    expect(erroApi.error?.erro.mensagem).toBe('valor deve ser um inteiro entre -10 e 10.');
   });
 
-  it('peso fora de 0..1 NÃO é validado no cliente: fake recusa com 400 peso_invalido', async () => {
+  it('peso fora de 0..1 NÃO é validado no cliente: fake recusa com 400 peso_invalido e mensagem ESPECÍFICA', async () => {
     const capturado = await novo()
       .feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 1, peso: 1.5 })
       .then(() => null, (e: unknown) => e);
-    const erroApi = capturado as { status?: number; error?: unknown; message?: string };
+    const erroApi = capturado as { status?: number; error?: { erro: { codigo: string; mensagem: string } } };
     expect(erroApi.status).toBe(400);
-    expect(JSON.stringify({ error: erroApi.error, message: erroApi.message })).toContain('peso_invalido');
+    expect(erroApi.error?.erro.codigo).toBe('peso_invalido');
+    // Fix I6 da revisão final: mesmo racional do valor_invalido acima.
+    expect(erroApi.error?.erro.mensagem).toBe('peso deve ser um número entre 0 e 1.');
   });
 
   it('peso 0 é aceito — soma de pesos zero é "sem amostra", não erro (validacao.ts)', async () => {
@@ -96,5 +101,40 @@ describe('RN-FE-09 · metadata opcional no feedback', () => {
   it('sem metadata, o campo não vai no corpo', async () => {
     await novo().feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 4 });
     expect(fake.ultima().corpo).not.toHaveProperty('metadata');
+  });
+
+  /**
+   * Fix M2 da revisão final ("Logs idênticos à Portkey"): o núcleo valida
+   * `metadata` do feedback via `validarMetadataDefault` nas duas rotas
+   * (objeto de strings, até 128 caracteres por valor, 400 metadata_invalida
+   * com a frase genérica) — o fake não validava nada, deixando qualquer
+   * corpo passar batido e o SDK nunca ver o 400 que o gateway real daria.
+   */
+  it('400 metadata_invalida chega cru quando metadata não é um objeto de strings', async () => {
+    const capturado = await novo()
+      .feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 1, metadata: { origem: 42 as unknown as string } })
+      .then(() => null, (e: unknown) => e);
+    const erroApi = capturado as { status?: number; error?: { erro: { codigo: string; mensagem: string } } };
+    expect(erroApi.status).toBe(400);
+    expect(erroApi.error?.erro.codigo).toBe('metadata_invalida');
+    // metadata_invalida continua com a frase GENÉRICA (Fix I6 só mudou
+    // valor_invalido/peso_invalido).
+    expect(erroApi.error?.erro.mensagem).toBe('A requisição não está no formato aceito pela sua organização.');
+  });
+
+  it('400 metadata_invalida chega cru quando um valor de metadata excede 128 caracteres', async () => {
+    const capturado = await novo()
+      .feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 1, metadata: { _user: 'a'.repeat(129) } })
+      .then(() => null, (e: unknown) => e);
+    const erroApi = capturado as { status?: number; error?: { erro: { codigo: string } } };
+    expect(erroApi.status).toBe(400);
+    expect(erroApi.error?.erro.codigo).toBe('metadata_invalida');
+  });
+
+  it('a resposta 201 ecoa metadata — mesmo comportamento do núcleo real', async () => {
+    const criado = await novo().feedback.create({
+      requestId: REQUEST_ID_DO_FAKE, valor: 4, metadata: { _user: 'ana' },
+    });
+    expect((criado as { metadata?: Record<string, string> }).metadata).toEqual({ _user: 'ana' });
   });
 });
