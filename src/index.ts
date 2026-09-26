@@ -42,6 +42,7 @@ export interface EntradaFeedback {
   requestId: string | undefined;
   valor: number;
   peso?: number;
+  metadata?: Metadata;
 }
 
 export interface RecursoCompletions {
@@ -154,10 +155,13 @@ export class Avalon {
   };
 
   /** Espelho campo a campo de POST /v1/feedback — a validação é do gateway
-   * (RN-SDK-05); 404/400 chegam crus como erro de API do SDK openai. */
-  async #criarFeedback({ requestId, valor, peso }: EntradaFeedback): Promise<unknown> {
+   * (RN-SDK-05, RN-FE-09); `valor`/`peso` chegam como o chamador mandou, sem
+   * faixa nem teto no SDK; 404/400 chegam crus como erro de API do SDK
+   * openai. */
+  async #criarFeedback({ requestId, valor, peso, metadata }: EntradaFeedback): Promise<unknown> {
     const corpo: Record<string, unknown> = { request_id: requestId, valor };
     if (peso !== undefined) corpo.peso = peso;
+    if (metadata !== undefined) corpo.metadata = metadata;
     // POST /v1/feedback é INSERT sem idempotência no gateway — o retry
     // padrão do SDK openai gravaria feedback duas vezes.
     return this.#cliente.post('/feedback', { body: corpo, maxRetries: 0 });

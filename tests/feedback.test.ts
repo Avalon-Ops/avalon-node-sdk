@@ -37,11 +37,11 @@ describe('RN-SDK-05 · feedback espelha a rota campo a campo', () => {
 
   it('valor fora da faixa NÃO é validado no cliente: a requisição SAI e o 400 do gateway chega cru', async () => {
     const capturado = await novo()
-      .feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 2 })
+      .feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 20 })
       .then(() => null, (e: unknown) => e);
     expect((capturado as { status?: number }).status).toBe(400);
-    // A prova de que o SDK não validou: o fake RECEBEU valor 2.
-    expect(fake.ultima().corpo?.valor).toBe(2);
+    // A prova de que o SDK não validou: o fake RECEBEU valor 20.
+    expect(fake.ultima().corpo?.valor).toBe(20);
   });
 
   it('F5: retry desligado no feedback — o 500 chega cru e o fake recebe EXATAMENTE 1 requisição', async () => {
@@ -50,5 +50,17 @@ describe('RN-SDK-05 · feedback espelha a rota campo a campo', () => {
       .then(() => null, (e: unknown) => e);
     expect((capturado as { status?: number }).status).toBe(500);
     expect(fake.contagemFeedback()).toBe(1);
+  });
+});
+
+describe('RN-FE-09 · metadata opcional no feedback', () => {
+  it('metadata presente entra no corpo, campo a campo', async () => {
+    await novo().feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 4, metadata: { _user: 'ana' } });
+    expect(fake.ultima().corpo).toEqual({ request_id: REQUEST_ID_DO_FAKE, valor: 4, metadata: { _user: 'ana' } });
+  });
+
+  it('sem metadata, o campo não vai no corpo', async () => {
+    await novo().feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 4 });
+    expect(fake.ultima().corpo).not.toHaveProperty('metadata');
   });
 });

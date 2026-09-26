@@ -96,8 +96,8 @@ export async function iniciarFakeGateway(): Promise<{
         if (requestId === UUID_INEXISTENTE) {
           return responder(res, 404, erro('nao_encontrado', 'Recurso não encontrado.'));
         }
-        if (typeof valor !== 'number' || valor < -1 || valor > 1) {
-          return responder(res, 400, erro('valor_invalido', 'valor deve ser um número entre -1 e 1.'));
+        if (typeof valor !== 'number' || valor < -10 || valor > 10) {
+          return responder(res, 400, erro('valor_invalido', 'valor deve ser um número inteiro entre -10 e 10.'));
         }
         return responder(res, 201, { id: 'fb-1', logId: requestId, valor, peso: (corpo?.peso as number | undefined) ?? 1 });
       }
