@@ -9,6 +9,11 @@ export const REQUEST_ID_DO_FAKE = '11111111-2222-4333-8444-555555555555';
 export const UUID_INEXISTENTE = '00000000-0000-4000-8000-000000000404';
 export const REQUEST_ID_ERRO_500 = '00000000-0000-4000-8000-000000000500';
 
+/** Mensagem genérica para politicaDeForma (RN-FE-01/02/05): valor_invalido,
+ * peso_invalido, metadata_invalida devem devolver isso ao cliente; o motivo
+ * fica apenas no log do servidor. */
+const MENSAGEM_GENERICA_POLICIA_DE_FORMA = 'A requisição não está no formato aceito pela sua organização.';
+
 export type RequisicaoGravada = {
   metodo: string;
   rota: string;
@@ -103,7 +108,8 @@ export async function iniciarFakeGateway(): Promise<{
           return responder(
             res,
             400,
-            erro('valor_invalido', `valor deve ser um inteiro entre -10 e 10: "${String(valor)}"`),
+            // politicaDeForma(codigo, motivo) — genérica ao cliente
+            erro('valor_invalido', MENSAGEM_GENERICA_POLICIA_DE_FORMA),
           );
         }
         const pesoBruto = corpo?.peso;
@@ -112,7 +118,8 @@ export async function iniciarFakeGateway(): Promise<{
           return responder(
             res,
             400,
-            erro('peso_invalido', `peso deve ser um número entre 0 e 1: "${String(peso)}"`),
+            // politicaDeForma(codigo, motivo) — genérica ao cliente
+            erro('peso_invalido', MENSAGEM_GENERICA_POLICIA_DE_FORMA),
           );
         }
         return responder(res, 201, { id: 'fb-1', logId: requestId, valor, peso });

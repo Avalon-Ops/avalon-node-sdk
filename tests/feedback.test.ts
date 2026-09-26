@@ -53,6 +53,16 @@ describe('RN-SDK-05 · feedback espelha a rota campo a campo', () => {
     expect(JSON.stringify({ error: erroApi.error, message: erroApi.message })).toContain('valor_invalido');
   });
 
+  it('valor não-inteiro (0.5): mensagem genérica ao cliente como no núcleo (politicaDeForma)', async () => {
+    const capturado = await novo()
+      .feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 0.5 })
+      .then(() => null, (e: unknown) => e);
+    const erroApi = capturado as { status?: number; error?: { erro: { codigo: string; mensagem: string } } };
+    expect(erroApi.status).toBe(400);
+    expect(erroApi.error?.erro.codigo).toBe('valor_invalido');
+    expect(erroApi.error?.erro.mensagem).toBe('A requisição não está no formato aceito pela sua organização.');
+  });
+
   it('peso fora de 0..1 NÃO é validado no cliente: fake recusa com 400 peso_invalido', async () => {
     const capturado = await novo()
       .feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 1, peso: 1.5 })
