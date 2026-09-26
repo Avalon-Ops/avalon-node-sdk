@@ -137,12 +137,12 @@ export async function iniciarFakeGateway(): Promise<{
             metadata[k] = v;
           }
         }
-        return responder(
-          res, 201,
-          metadata !== undefined
-            ? { id: 'fb-1', logId: requestId, valor, peso, metadata }
-            : { id: 'fb-1', logId: requestId, valor, peso },
-        );
+        // N3(b) da re-revisão final do Bloco A: o núcleo real SEMPRE devolve
+        // `metadata` na resposta 201 — objeto vazio quando o campo não veio
+        // no corpo, nunca a chave ausente. O fake só ecoava quando
+        // `metadata` estava definida; corrigido para sempre montar a chave
+        // (vazia por padrão).
+        return responder(res, 201, { id: 'fb-1', logId: requestId, valor, peso, metadata: metadata ?? {} });
       }
       return responder(res, 404, erro('rota_inexistente', 'Recurso não encontrado.'));
     })();

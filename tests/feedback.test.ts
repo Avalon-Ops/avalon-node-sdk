@@ -137,4 +137,16 @@ describe('RN-FE-09 · metadata opcional no feedback', () => {
     });
     expect((criado as { metadata?: Record<string, string> }).metadata).toEqual({ _user: 'ana' });
   });
+
+  /**
+   * N3(b) da re-revisão final do Bloco A: o núcleo real SEMPRE devolve
+   * `metadata` na resposta 201 do POST /v1/feedback — objeto vazio quando o
+   * campo não veio no corpo, nunca a chave ausente. O fake divergia: só
+   * ecoava `metadata` quando presente na requisição.
+   */
+  it('sem metadata na requisição, a resposta 201 ainda traz metadata como objeto vazio — mesmo comportamento do núcleo real', async () => {
+    const criado = await novo().feedback.create({ requestId: REQUEST_ID_DO_FAKE, valor: 4 });
+    expect(criado).toHaveProperty('metadata');
+    expect((criado as { metadata?: Record<string, string> }).metadata).toEqual({});
+  });
 });
